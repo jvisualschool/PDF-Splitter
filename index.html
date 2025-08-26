@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Splitter - PDF 파일 분리 도구</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-8">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-file-pdf text-red-600 mr-3"></i>
+                PDF Splitter
+            </h1>
+            <p class="text-gray-600 text-lg">PDF 파일을 원하는 페이지별로 쉽게 분리하세요</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <!-- Step 1: Upload -->
+            <div id="uploadSection" class="mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full text-sm mr-3">1</span>
+                    PDF 파일 업로드
+                </h2>
+                
+                <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 transition-colors">
+                    <i class="fas fa-cloud-upload-alt text-6xl text-gray-400 mb-4"></i>
+                    <p class="text-xl text-gray-600 mb-2">PDF 파일을 드래그하여 놓거나 클릭하여 선택하세요</p>
+                    <p class="text-sm text-gray-500">지원 형식: PDF (최대 50MB)</p>
+                    <input type="file" id="fileInput" accept=".pdf" class="hidden">
+                </div>
+
+                <div id="fileInfo" class="hidden mt-4 p-4 bg-blue-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-file-pdf text-red-600 text-2xl mr-3"></i>
+                        <div>
+                            <p id="fileName" class="font-semibold text-gray-800"></p>
+                            <p id="fileSize" class="text-sm text-gray-600"></p>
+                        </div>
+                        <button id="removeFile" class="ml-auto text-red-600 hover:text-red-800">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Page Info -->
+            <div id="pageInfoSection" class="hidden mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full text-sm mr-3">2</span>
+                    페이지 정보
+                </h2>
+                
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-600 text-xl mr-3"></i>
+                        <span class="text-gray-700">총 페이지 수: </span>
+                        <span id="totalPages" class="font-bold text-blue-600 ml-2"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Split Configuration -->
+            <div id="splitConfigSection" class="hidden mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full text-sm mr-3">3</span>
+                    분리 설정
+                </h2>
+
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <label class="text-gray-700 font-medium">분리 방법:</label>
+                        <div class="flex space-x-4">
+                            <label class="flex items-center">
+                                <input type="radio" name="splitMethod" value="range" checked class="mr-2">
+                                <span>페이지 범위로 분리</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="splitMethod" value="individual" class="mr-2">
+                                <span>개별 페이지로 분리</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="rangeConfig">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-semibold text-gray-800 mb-3">페이지 범위 설정</h3>
+                            <div id="rangeList" class="space-y-3">
+                                <!-- 동적으로 생성됨 -->
+                            </div>
+                            <button id="addRange" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-plus mr-2"></i>범위 추가
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="individualConfig" class="hidden">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-gray-700 mb-3">모든 페이지를 개별 파일로 분리합니다.</p>
+                            <div class="text-sm text-gray-600">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <span id="individualInfo"></span>개의 파일이 생성됩니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Process -->
+            <div id="processSection" class="hidden mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full text-sm mr-3">4</span>
+                    PDF 분리 실행
+                </h2>
+
+                <button id="startSplit" class="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors text-lg font-semibold">
+                    <i class="fas fa-scissors mr-2"></i>PDF 분리 시작
+                </button>
+
+                <div id="progressSection" class="hidden mt-6">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center mb-3">
+                            <i class="fas fa-spinner fa-spin text-blue-600 mr-3"></i>
+                            <span class="font-semibold">PDF 분리 중...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <p id="progressText" class="text-sm text-gray-600 mt-2">준비 중...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Download -->
+            <div id="downloadSection" class="hidden">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm mr-3">
+                        <i class="fas fa-check"></i>
+                    </span>
+                    다운로드
+                </h2>
+
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 text-xl mr-3"></i>
+                        <span class="text-green-800 font-semibold">PDF 분리가 완료되었습니다!</span>
+                    </div>
+                </div>
+
+                <div id="downloadList" class="space-y-3">
+                    <!-- 동적으로 생성됨 -->
+                </div>
+
+                <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mr-3"></i>
+                        <span class="text-yellow-800 text-sm">파일들은 브라우저 메모리에서만 생성되며 서버에 저장되지 않습니다.</span>
+                    </div>
+                </div>
+
+                <button id="resetApp" class="mt-4 bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-refresh mr-2"></i>새로 시작
+                </button>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="grid md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                <i class="fas fa-shield-alt text-3xl text-green-600 mb-3"></i>
+                <h3 class="font-semibold text-gray-800 mb-2">안전한 처리</h3>
+                <p class="text-gray-600 text-sm">모든 처리는 브라우저에서 이루어지며 파일이 서버에 전송되지 않습니다</p>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                <i class="fas fa-lightning-bolt text-3xl text-yellow-600 mb-3"></i>
+                <h3 class="font-semibold text-gray-800 mb-2">빠른 처리</h3>
+                <p class="text-gray-600 text-sm">업로드 없이 즉시 처리되어 빠르고 효율적입니다</p>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                <i class="fas fa-mobile-alt text-3xl text-blue-600 mb-3"></i>
+                <h3 class="font-semibold text-gray-800 mb-2">모든 기기 지원</h3>
+                <p class="text-gray-600 text-sm">PC, 태블릿, 모바일에서 모두 사용할 수 있습니다</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-500 text-sm">
+            <p>&copy; 2025 PDF Splitter. Jvibeschool.com</p>
+        </div>
+    </div>
+
+    <script>
+        let currentPDF = null;
+        let totalPagesCount = 0;
+        let splitRanges = [];
+
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const removeFile = document.getElementById('removeFile');
+        const totalPages = document.getElementById('totalPages');
+        
+        const uploadSection = document.getElementById('uploadSection');
+        const pageInfoSection = document.getElementById('pageInfoSection');
+        const splitConfigSection = document.getElementById('splitConfigSection');
+        const processSection = document.getElementById('processSection');
+        const downloadSection = document.getElementById('downloadSection');
+
+        const splitMethodRadios = document.getElementsByName('splitMethod');
+        const rangeConfig = document.getElementById('rangeConfig');
+        const individualConfig = document.getElementById('individualConfig');
+        const rangeList = document.getElementById('rangeList');
+        const addRange = document.getElementById('addRange');
+        const individualInfo = document.getElementById('individualInfo');
+
+        const startSplit = document.getElementById('startSplit');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const downloadList = document.getElementById('downloadList');
+        const resetApp = document.getElementById('resetApp');
+
+        // Event Listeners
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        removeFile.addEventListener('click', resetToUpload);
+
+        splitMethodRadios.forEach(radio => {
+            radio.addEventListener('change', handleSplitMethodChange);
+        });
+
+        addRange.addEventListener('click', addRangeInput);
+        startSplit.addEventListener('click', processPDF);
+        resetApp.addEventListener('click', resetToUpload);
+
+        // File handling
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-400', 'bg-blue-50');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        }
+
+        async function handleFile(file) {
+            if (file.type !== 'application/pdf') {
+                alert('PDF 파일만 업로드할 수 있습니다.');
+                return;
+            }
+
+            if (file.size > 50 * 1024 * 1024) {
+                alert('파일 크기는 50MB를 초과할 수 없습니다.');
+                return;
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                currentPDF = await PDFLib.PDFDocument.load(arrayBuffer);
+                totalPagesCount = currentPDF.getPageCount();
+
+                // Update UI
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                totalPages.textContent = totalPagesCount;
+                individualInfo.textContent = totalPagesCount;
+
+                fileInfo.classList.remove('hidden');
+                pageInfoSection.classList.remove('hidden');
+                splitConfigSection.classList.remove('hidden');
+                processSection.classList.remove('hidden');
+
+                // Initialize default range
+                splitRanges = [{start: 1, end: totalPagesCount}];
+                updateRangeList();
+
+            } catch (error) {
+                alert('PDF 파일을 읽는 중 오류가 발생했습니다.');
+                console.error(error);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function handleSplitMethodChange(e) {
+            if (e.target.value === 'range') {
+                rangeConfig.classList.remove('hidden');
+                individualConfig.classList.add('hidden');
+            } else {
+                rangeConfig.classList.add('hidden');
+                individualConfig.classList.remove('hidden');
+            }
+        }
+
+        function addRangeInput() {
+            splitRanges.push({start: 1, end: totalPagesCount});
+            updateRangeList();
+        }
+
+        function updateRangeList() {
+            rangeList.innerHTML = '';
+            
+            splitRanges.forEach((range, index) => {
+                const rangeDiv = document.createElement('div');
+                rangeDiv.className = 'flex items-center space-x-3 bg-white p-3 rounded border';
+                rangeDiv.innerHTML = `
+                    <span class="text-sm font-medium text-gray-700 w-16">범위 ${index + 1}:</span>
+                    <input type="number" min="1" max="${totalPagesCount}" value="${range.start}" 
+                           class="w-20 px-2 py-1 border rounded text-center" 
+                           onchange="updateRange(${index}, 'start', this.value)">
+                    <span class="text-gray-500">~</span>
+                    <input type="number" min="1" max="${totalPagesCount}" value="${range.end}" 
+                           class="w-20 px-2 py-1 border rounded text-center" 
+                           onchange="updateRange(${index}, 'end', this.value)">
+                    <span class="text-sm text-gray-500">페이지</span>
+                    ${splitRanges.length > 1 ? `
+                        <button onclick="removeRange(${index})" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                `;
+                rangeList.appendChild(rangeDiv);
+            });
+        }
+
+        function updateRange(index, field, value) {
+            const numValue = parseInt(value);
+            if (numValue >= 1 && numValue <= totalPagesCount) {
+                splitRanges[index][field] = numValue;
+            }
+        }
+
+        function removeRange(index) {
+            splitRanges.splice(index, 1);
+            updateRangeList();
+        }
+
+        async function processPDF() {
+            if (!currentPDF) {
+                alert('PDF 파일을 먼저 업로드해주세요.');
+                return;
+            }
+
+            progressSection.classList.remove('hidden');
+            startSplit.disabled = true;
+
+            try {
+                const splitMethod = document.querySelector('input[name="splitMethod"]:checked').value;
+                const results = [];
+
+                if (splitMethod === 'individual') {
+                    // Individual pages
+                    for (let i = 1; i <= totalPagesCount; i++) {
+                        updateProgress((i - 1) / totalPagesCount * 100, `페이지 ${i} 처리 중...`);
+                        
+                        const newPDF = await PDFLib.PDFDocument.create();
+                        const [page] = await newPDF.copyPages(currentPDF, [i - 1]);
+                        newPDF.addPage(page);
+                        
+                        const pdfBytes = await newPDF.save();
+                        results.push({
+                            name: `page_${i}.pdf`,
+                            data: pdfBytes
+                        });
+                    }
+                } else {
+                    // Range-based
+                    for (let i = 0; i < splitRanges.length; i++) {
+                        const range = splitRanges[i];
+                        updateProgress((i / splitRanges.length) * 100, `범위 ${i + 1} 처리 중...`);
+                        
+                        if (range.start > range.end || range.start < 1 || range.end > totalPagesCount) {
+                            throw new Error(`잘못된 페이지 범위: ${range.start}-${range.end}`);
+                        }
+
+                        const newPDF = await PDFLib.PDFDocument.create();
+                        const pageIndices = [];
+                        for (let j = range.start - 1; j < range.end; j++) {
+                            pageIndices.push(j);
+                        }
+                        
+                        const copiedPages = await newPDF.copyPages(currentPDF, pageIndices);
+                        copiedPages.forEach(page => newPDF.addPage(page));
+                        
+                        const pdfBytes = await newPDF.save();
+                        results.push({
+                            name: `pages_${range.start}-${range.end}.pdf`,
+                            data: pdfBytes
+                        });
+                    }
+                }
+
+                updateProgress(100, '완료!');
+                
+                setTimeout(() => {
+                    showDownloadSection(results);
+                }, 500);
+
+            } catch (error) {
+                alert('PDF 처리 중 오류가 발생했습니다: ' + error.message);
+                console.error(error);
+                progressSection.classList.add('hidden');
+                startSplit.disabled = false;
+            }
+        }
+
+        function updateProgress(percent, text) {
+            progressBar.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+
+        function showDownloadSection(results) {
+            downloadSection.classList.remove('hidden');
+            progressSection.classList.add('hidden');
+            
+            downloadList.innerHTML = '';
+            
+            results.forEach((result, index) => {
+                const downloadDiv = document.createElement('div');
+                downloadDiv.className = 'flex items-center justify-between bg-gray-50 p-4 rounded-lg border';
+                
+                const blob = new Blob([result.data], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                downloadDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-file-pdf text-red-600 text-xl mr-3"></i>
+                        <div>
+                            <p class="font-semibold text-gray-800">${result.name}</p>
+                            <p class="text-sm text-gray-600">${formatFileSize(result.data.length)}</p>
+                        </div>
+                    </div>
+                    <a href="${url}" download="${result.name}" 
+                       class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>다운로드
+                    </a>
+                `;
+                
+                downloadList.appendChild(downloadDiv);
+            });
+        }
+
+        function resetToUpload() {
+            currentPDF = null;
+            totalPagesCount = 0;
+            splitRanges = [];
+            
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+            pageInfoSection.classList.add('hidden');
+            splitConfigSection.classList.add('hidden');
+            processSection.classList.add('hidden');
+            downloadSection.classList.add('hidden');
+            progressSection.classList.add('hidden');
+            
+            startSplit.disabled = false;
+            
+            // Reset split method
+            document.querySelector('input[name="splitMethod"][value="range"]').checked = true;
+            rangeConfig.classList.remove('hidden');
+            individualConfig.classList.add('hidden');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                document.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // Remove drag styling when leaving drop zone
+            dropZone.addEventListener('dragleave', (e) => {
+                if (!dropZone.contains(e.relatedTarget)) {
+                    dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+    
